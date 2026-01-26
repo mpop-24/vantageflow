@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Optional, List
+from datetime import datetime
 from sqlmodel import SQLModel, Field, Relationship
 
 
@@ -20,5 +21,6 @@ class CompetitorTrack(SQLModel, table=True):
     name: str
     url: str
     last_price: Optional[float] = None
+    last_checked: Optional[datetime] = None
 
     product: Optional[ClientProduct] = Relationship(back_populates="competitors")

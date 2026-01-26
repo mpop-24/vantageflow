@@ -27,6 +27,17 @@ def _parse_form_body(body):
     return {key: values[0] for key, values in data.items()}
 
 
+def _handle_slack_url_verification(body):
+    try:
+        payload = json.loads(body)
+    except Exception:
+        return None
+    if payload.get("type") == "url_verification":
+        challenge = payload.get("challenge")
+        return JSONResponse(content={"challenge": challenge})
+    return None
+
+
 def _verify_slack_request(headers, body):
     secret = os.getenv("SLACK_SIGNING_SECRET")
     if not secret:
@@ -49,6 +60,9 @@ def _verify_slack_request(headers, body):
 @app.post("/slack/prices")
 async def slack_prices(request: Request):
     body = await request.body()
+    verification = _handle_slack_url_verification(body)
+    if verification:
+        return verification
     if not _verify_slack_request(request.headers, body):
         raise HTTPException(status_code=401, detail="Invalid Slack signature")
     payload = _parse_form_body(body)
@@ -60,6 +74,9 @@ async def slack_prices(request: Request):
 @app.post("/slack/actions")
 async def slack_actions(request: Request):
     body = await request.body()
+    verification = _handle_slack_url_verification(body)
+    if verification:
+        return verification
     if not _verify_slack_request(request.headers, body):
         raise HTTPException(status_code=401, detail="Invalid Slack signature")
     form = _parse_form_body(body)
@@ -82,3 +99,14 @@ async def slack_actions(request: Request):
         return JSONResponse(content=response)
 
     return PlainTextResponse("No action", status_code=200)
+
+
+@app.post("/slack/events")
+async def slack_events(request: Request):
+    body = await request.body()
+    verification = _handle_slack_url_verification(body)
+    if verification:
+        return verification
+    if not _verify_slack_request(request.headers, body):
+        raise HTTPException(status_code=401, detail="Invalid Slack signature")
+    return PlainTextResponse("OK", status_code=200)
