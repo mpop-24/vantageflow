@@ -8,18 +8,9 @@ from urllib.parse import parse_qs
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 
-from db import get_engine
 from slack_handlers import handle_prices_command, handle_product_selected
 
 app = FastAPI()
-_engine = None
-
-
-def _get_engine():
-    global _engine
-    if _engine is None:
-        _engine = get_engine()
-    return _engine
 
 
 def _parse_form_body(body):
@@ -67,7 +58,7 @@ async def slack_prices(request: Request):
         raise HTTPException(status_code=401, detail="Invalid Slack signature")
     payload = _parse_form_body(body)
     team_id = payload.get("team_id")
-    response = handle_prices_command(_get_engine(), team_id)
+    response = handle_prices_command(team_id)
     return JSONResponse(content=response)
 
 
@@ -95,7 +86,7 @@ async def slack_actions(request: Request):
         value = selected.get("value")
         if not value:
             return PlainTextResponse("Missing product id", status_code=400)
-        response = handle_product_selected(_get_engine(), int(value))
+        response = handle_product_selected(int(value))
         return JSONResponse(content=response)
 
     return PlainTextResponse("No action", status_code=200)

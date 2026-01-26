@@ -1,9 +1,7 @@
 from datetime import datetime
-from sqlmodel import Session
 
-from db import get_engine
 from main import PriceScraper
-from models import ClientProduct
+from supabase_db import get_client_product, update_competitor
 
 
 def _format_price(value):
@@ -48,30 +46,25 @@ def build_audit_summary(product, client_price, competitor_rows, checked_at):
     return "\n".join(lines)
 
 
-def run_audit(engine, scraper, product_id):
+def run_audit(scraper, product_id):
     checked_at = datetime.utcnow()
-    with Session(engine) as session:
-        product = session.get(ClientProduct, product_id)
-        if not product:
-            raise RuntimeError("Product not found")
+    product = get_client_product(product_id)
+    if not product:
+        raise RuntimeError("Product not found")
 
-        client_price = scraper.get_price(product.base_url)
-        competitor_rows = []
+    client_price = scraper.get_price(product.base_url)
+    competitor_rows = []
 
-        for comp in product.competitors:
-            price = scraper.get_price(comp.url)
-            if price is None:
-                continue
-            competitor_rows.append({
-                "name": comp.name,
-                "url": comp.url,
-                "price": price,
-            })
-            comp.last_price = price
-            comp.last_checked = checked_at
-            session.add(comp)
-
-        session.commit()
+    for comp in product.competitors:
+        price = scraper.get_price(comp.url)
+        if price is None:
+            continue
+        competitor_rows.append({
+            "name": comp.name,
+            "url": comp.url,
+            "price": price,
+        })
+        update_competitor(comp.id, last_price=price, last_checked=checked_at)
 
     return build_audit_summary(product, client_price, competitor_rows, checked_at)
 
@@ -83,7 +76,6 @@ if __name__ == "__main__":
     parser.add_argument("--product-id", type=int, required=True)
     args = parser.parse_args()
 
-    engine = get_engine()
     scraper = PriceScraper()
-    summary = run_audit(engine, scraper, args.product_id)
+    summary = run_audit(scraper, args.product_id)
     print(summary)

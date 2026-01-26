@@ -38,7 +38,7 @@ Example fields:
 - URL: flexispot.com/...
 - Last Price: 499.00
 
-The parent-child relationship is defined in `models.py` via SQLModel relationships.
+The parent-child relationship is defined in the database schema. SQLModel models are kept in `models.py` as a reference schema.
 
 ## 2) Worker Logic (the Brain)
 Every run (typically every 4 hours), the worker:
@@ -71,7 +71,7 @@ def check_all_prices():
     session.commit()
 ```
 
-Note: The actual implementation also stores `last_checked` for each competitor.
+Note: The actual implementation also stores `last_checked` for each competitor and talks to Supabase via the REST API.
 
 ## 3) Slack UI Logic (the Dashboard)
 - `/prices` command: queries ClientProduct rows for a given Slack Team ID and returns a list of products.
@@ -87,7 +87,8 @@ The audit formatter is a separate on-demand script (`audit.py`). It scrapes curr
 
 ## Quickstart
 1) Set environment variables:
-   - `DATABASE_URL`
+   - `SUPABASE_URL` (ex: `https://<ref>.supabase.co`)
+   - `SUPABASE_SERVICE_ROLE_KEY` (server-side only; never ship to the browser)
    - `SLACK_BOT_TOKEN`
    - `SLACK_SIGNING_SECRET`
    - Optional: `CHECK_INTERVAL_HOURS` (default 4), `GUARDIAN_MODE` (`once` or `forever`)

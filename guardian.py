@@ -2,7 +2,6 @@ import logging
 import os
 import time
 
-from db import get_engine
 from main import PriceScraper
 from slack_alerts import send_price_alert
 from worker import check_all_prices
@@ -18,9 +17,8 @@ def _interval_seconds():
 
 
 def run_once():
-    engine = get_engine()
     scraper = PriceScraper()
-    check_all_prices(engine, scraper, send_price_alert)
+    check_all_prices(scraper, send_price_alert)
 
 
 def run_forever():
