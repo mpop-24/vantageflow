@@ -142,6 +142,8 @@ def build_competitors_view(product):
         ]
 
     return {
-        "response_action": "update",
+        "response_type": "ephemeral",
+        "replace_original": True,
+        "text": f"{product.product_name} competitors",
         "blocks": blocks,
     }

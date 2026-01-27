@@ -86,7 +86,7 @@ async def slack_actions(request: Request):
         value = selected.get("value")
         if not value:
             return PlainTextResponse("Missing product id", status_code=400)
-        response = handle_product_selected(int(value))
+        response = handle_product_selected(value)
         return JSONResponse(content=response)
 
     return PlainTextResponse("No action", status_code=200)

@@ -11,7 +11,8 @@ def handle_product_selected(product_id):
     product = get_client_product(product_id)
     if not product:
         return {
-            "response_action": "update",
+            "response_type": "ephemeral",
+            "replace_original": True,
             "text": "Product not found.",
         }
     return build_competitors_view(product)

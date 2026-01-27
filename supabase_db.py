@@ -100,7 +100,7 @@ def list_client_products(team_id: Optional[str] = None) -> List[ClientProduct]:
     return [ _map_product(row) for row in rows ]
 
 
-def get_client_product(product_id: int) -> Optional[ClientProduct]:
+def get_client_product(product_id) -> Optional[ClientProduct]:
     params = {
         "select": "id,product_name,base_url,slack_channel_id,slack_team_id,competitortrack(id,product_id,name,url,last_price,last_checked)",
         "id": f"eq.{product_id}",
