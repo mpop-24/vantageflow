@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from main import PriceScraper
-from supabase_db import get_client_product, update_competitor
+from supabase_db import get_client_product, update_competitor, update_client_product
 
 
 def _format_price(value):
@@ -53,6 +53,8 @@ def run_audit(scraper, product_id):
         raise RuntimeError("Product not found")
 
     client_price = scraper.get_price(product.base_url)
+    if client_price is not None:
+        update_client_product(product.id, client_price=client_price)
     competitor_rows = []
 
     for comp in product.competitors:

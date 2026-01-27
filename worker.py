@@ -1,7 +1,7 @@
 from datetime import datetime
 import logging
 
-from supabase_db import list_client_products, update_competitor
+from supabase_db import list_client_products, update_competitor, update_client_product
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +25,8 @@ def check_all_prices(scraper, alert_fn):
                 product.product_name,
                 product.base_url,
             )
+        else:
+            update_client_product(product.id, client_price=client_price)
 
         for comp in product.competitors:
             current_comp_price = scraper.get_price(comp.url)

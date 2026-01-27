@@ -23,7 +23,7 @@ def _gap_text(client_price, competitor_price):
         return f"Gap: {_format_price(diff)} more expensive"
     if diff < 0:
         return f"Gap: {_format_price(abs(diff))} cheaper"
-    return "Gap: Price matched"
+    return "Gap: Price Matched"
 
 
 def build_price_alert_message(
@@ -57,7 +57,7 @@ def build_price_alert_message(
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": f"*{product_name}* competitor update\n{details}",
+                "text": f"{product_name} competitor update\n{details}",
             },
         }
     ]
@@ -127,7 +127,8 @@ def build_product_select(products):
     }
 
 
-def build_competitors_view(product, client_price):
+def build_competitors_view(product):
+    client_price = product.client_price
     if not product.competitors:
         blocks = [
             {
@@ -136,7 +137,8 @@ def build_competitors_view(product, client_price):
                     "type": "mrkdwn",
                     "text": (
                         f"{product.product_name}\n"
-                        f"Client (live): {_format_price(client_price)}\n"
+                        f"{_format_price(client_price)}\n"
+                        "Competitors\n"
                         "No competitors configured."
                     ),
                 },
@@ -144,8 +146,8 @@ def build_competitors_view(product, client_price):
         ]
     else:
         lines = []
-        lines.append(f"Client (live): {_format_price(client_price)}")
-        lines.append("")
+        lines.append(f"{_format_price(client_price)}")
+        lines.append("Competitors")
         for comp in product.competitors:
             gap = _gap_text(client_price, comp.last_price)
             lines.append(f"• {comp.name} — {_format_price(comp.last_price)} — {gap}")
@@ -154,7 +156,7 @@ def build_competitors_view(product, client_price):
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"{product.product_name} Competitors\n\n" + "\n".join(lines),
+                    "text": f"{product.product_name}\n" + "\n".join(lines),
                 },
             }
         ]
@@ -167,19 +169,19 @@ def build_competitors_view(product, client_price):
     }
 
 
-def build_all_products_view(product_rows):
-    if not product_rows:
+def build_all_products_view(products):
+    if not products:
         return {
             "response_type": "ephemeral",
             "text": "No products configured yet.",
         }
 
     lines = []
-    for row in product_rows:
-        product = row["product"]
-        client_price = row["client_price"]
+    for product in products:
+        client_price = product.client_price
         lines.append(f"{product.product_name}")
-        lines.append(f"Client (live): {_format_price(client_price)}")
+        lines.append(f"{_format_price(client_price)}")
+        lines.append("Competitors")
         if not product.competitors:
             lines.append("• No competitors configured.")
             continue
