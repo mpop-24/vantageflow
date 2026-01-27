@@ -136,7 +136,7 @@ def build_competitors_view(product):
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"*{product.product_name}* competitors\n" + "\n".join(lines),
+                    "text": f"*{product.product_name}* competitors\n\n" + "\n".join(lines),
                 },
             }
         ]
