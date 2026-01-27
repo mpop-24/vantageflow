@@ -158,7 +158,7 @@ def build_all_products_view(products):
 
     lines = []
     for product in products:
-        lines.append(f"*{product.product_name}*")
+        lines.append(f"{product.product_name}")
         if not product.competitors:
             lines.append("• No competitors configured.")
             continue
