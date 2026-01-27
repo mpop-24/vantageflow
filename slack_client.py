@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 SLACK_POST_MESSAGE_URL = "https://slack.com/api/chat.postMessage"
 
 
-def send_slack_message(channel, text, blocks=None, token=None):
+def send_slack_message(channel, text, blocks=None, attachments=None, token=None):
     token = token or os.getenv("SLACK_BOT_TOKEN")
     if not token:
         raise RuntimeError("SLACK_BOT_TOKEN is not set")
@@ -18,6 +18,8 @@ def send_slack_message(channel, text, blocks=None, token=None):
     }
     if blocks:
         payload["blocks"] = blocks
+    if attachments:
+        payload["attachments"] = attachments
 
     headers = {"Authorization": f"Bearer {token}"}
     try:

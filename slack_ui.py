@@ -33,36 +33,63 @@ def build_price_alert_message(
     new_p,
     client_p=None,
     competitor_url=None,
+    product_url=None,
+    image_url=None,
+    sku=None,
 ):
-    if old_p is None:
-        change_word = "updated"
-    elif new_p < old_p:
-        change_word = "dropped"
-    elif new_p > old_p:
-        change_word = "rose"
+    if new_p is None:
+        headline = "Price Change Alert"
     else:
-        change_word = "updated"
+        headline = "Price Undercut Alert" if (client_p is not None and new_p < client_p) else "Price Change Alert"
 
-    gap = None
-    if client_p is not None and new_p is not None:
-        gap = client_p - new_p
+    gap_text = _gap_text(client_p, new_p)
 
-    headline = f"⚠️ Alert: {comp_name} {change_word} to {_format_price(new_p)}"
-    details = f"Was {_format_price(old_p)} → Now {_format_price(new_p)}"
-    if client_p is not None:
-        details += f"\nYour price: {_format_price(client_p)} • Gap: {_format_signed(gap)}"
+    product_lines = [product_name]
+    if sku:
+        product_lines.append(f"SKU: {sku}")
+    product_subtitle = "Your Product" if product_lines else None
 
-    blocks = [
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": f"{product_name} competitor update\n{details}",
-            },
+    header_block = {
+        "type": "section",
+        "text": {"type": "mrkdwn", "text": f"⚠️ {headline}"},
+    }
+
+    product_text = product_name
+    if product_subtitle:
+        product_text = f"{product_name}\n{product_subtitle}"
+        if sku:
+            product_text = f"{product_name}\n{product_subtitle} • SKU: {sku}"
+
+    product_block = {
+        "type": "section",
+        "text": {"type": "mrkdwn", "text": product_text},
+    }
+    if image_url:
+        product_block["accessory"] = {
+            "type": "image",
+            "image_url": image_url,
+            "alt_text": product_name,
         }
+
+    price_fields = [
+        {"type": "mrkdwn", "text": f"Your Price\n{_format_price(client_p)}"},
+        {"type": "mrkdwn", "text": f"Competitor Price\n{_format_price(new_p)}"},
+        {"type": "mrkdwn", "text": f"Gap\n{gap_text.replace('Gap: ', '')}"},
     ]
 
-    if competitor_url:
+    prices_block = {
+        "type": "section",
+        "fields": price_fields,
+    }
+
+    context_block = {
+        "type": "context",
+        "elements": [{"type": "mrkdwn", "text": f"Competitor: {comp_name}"}],
+    }
+
+    blocks = [header_block, product_block, prices_block, context_block]
+
+    if competitor_url or product_url:
         blocks.append(
             {
                 "type": "actions",
@@ -70,15 +97,20 @@ def build_price_alert_message(
                     {
                         "type": "button",
                         "text": {"type": "plain_text", "text": "View Product"},
-                        "url": competitor_url,
+                        "url": competitor_url or product_url,
                     }
                 ],
             }
         )
 
     return {
-        "text": headline,
-        "blocks": blocks,
+        "text": f"{headline}: {comp_name} now {_format_price(new_p)}",
+        "attachments": [
+            {
+                "color": "#7a1e1e",
+                "blocks": blocks,
+            }
+        ],
     }
 
 
