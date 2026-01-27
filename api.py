@@ -7,6 +7,7 @@ from urllib.parse import parse_qs
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
+import httpx
 
 from slack_handlers import handle_prices_command, handle_product_selected
 
@@ -48,6 +49,16 @@ def _verify_slack_request(headers, body):
     return hmac.compare_digest(expected, signature)
 
 
+async def _post_response_url(response_url, payload):
+    if not response_url:
+        return
+    try:
+        async with httpx.AsyncClient(timeout=8) as client:
+            await client.post(response_url, json=payload)
+    except Exception:
+        return
+
+
 @app.post("/slack/prices")
 async def slack_prices(request: Request):
     body = await request.body()
@@ -87,6 +98,10 @@ async def slack_actions(request: Request):
         if not value:
             return PlainTextResponse("Missing product id", status_code=400)
         response = handle_product_selected(value)
+        response_url = data.get("response_url")
+        if response_url:
+            await _post_response_url(response_url, response)
+            return PlainTextResponse("OK", status_code=200)
         return JSONResponse(content=response)
 
     return PlainTextResponse("No action", status_code=200)
