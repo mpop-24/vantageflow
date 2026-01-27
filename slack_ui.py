@@ -105,7 +105,7 @@ def build_product_select(products):
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": "*Which product do you want to audit?*",
+                    "text": "Which product do you want to audit?",
                 },
             },
             {
@@ -135,7 +135,7 @@ def build_competitors_view(product, client_price):
                 "text": {
                     "type": "mrkdwn",
                     "text": (
-                        f"*{product.product_name}*\n"
+                        f"{product.product_name}\n"
                         f"Client (live): {_format_price(client_price)}\n"
                         "No competitors configured."
                     ),
@@ -148,15 +148,13 @@ def build_competitors_view(product, client_price):
         lines.append("")
         for comp in product.competitors:
             gap = _gap_text(client_price, comp.last_price)
-            lines.append(
-                f"• *{comp.name}* — {_format_price(comp.last_price)} — {gap}"
-            )
+            lines.append(f"• {comp.name} — {_format_price(comp.last_price)} — {gap}")
         blocks = [
             {
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"*{product.product_name}* Competitors\n\n" + "\n".join(lines),
+                    "text": f"{product.product_name} Competitors\n\n" + "\n".join(lines),
                 },
             }
         ]
@@ -180,7 +178,7 @@ def build_all_products_view(product_rows):
     for row in product_rows:
         product = row["product"]
         client_price = row["client_price"]
-        lines.append(f"*{product.product_name}*")
+        lines.append(f"{product.product_name}")
         lines.append(f"Client (live): {_format_price(client_price)}")
         if not product.competitors:
             lines.append("• No competitors configured.")
