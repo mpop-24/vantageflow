@@ -136,7 +136,7 @@ def build_competitors_view(product):
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"*{product.product_name}* competitors\n\n" + "\n".join(lines),
+                    "text": f"*{product.product_name}* Competitors\n\n" + "\n".join(lines),
                 },
             }
         ]
@@ -146,4 +146,41 @@ def build_competitors_view(product):
         "replace_original": True,
         "text": f"{product.product_name} competitors",
         "blocks": blocks,
+    }
+
+
+def build_all_products_view(products):
+    if not products:
+        return {
+            "response_type": "ephemeral",
+            "text": "No products configured yet.",
+        }
+
+    lines = []
+    for product in products:
+        lines.append(f"*{product.product_name}*")
+        if not product.competitors:
+            lines.append("• No competitors configured.")
+            continue
+        for comp in product.competitors:
+            lines.append(f"• {comp.name} — {_format_price(comp.last_price)}")
+        lines.append("")
+
+    text = "\n".join(lines).strip()
+    truncated = False
+    if len(text) > 2900:
+        text = text[:2900].rsplit("\n", 1)[0]
+        truncated = True
+    if truncated:
+        text += "\n\n_Trimmed for length. Refine filters or query a single product._"
+
+    return {
+        "response_type": "ephemeral",
+        "text": "All products and competitors",
+        "blocks": [
+            {
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": text},
+            }
+        ],
     }

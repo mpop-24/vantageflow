@@ -1,10 +1,15 @@
-from slack_ui import build_product_select, build_competitors_view
+from slack_ui import build_product_select, build_competitors_view, build_all_products_view
 from supabase_db import list_client_products, get_client_product
 
 
 def handle_prices_command(team_id=None):
     products = list_client_products(team_id)
     return build_product_select(products)
+
+
+def handle_all_products_command(team_id=None):
+    products = list_client_products(team_id)
+    return build_all_products_view(products)
 
 
 def handle_product_selected(product_id):

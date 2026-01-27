@@ -9,7 +9,11 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 import httpx
 
-from slack_handlers import handle_prices_command, handle_product_selected
+from slack_handlers import (
+    handle_prices_command,
+    handle_product_selected,
+    handle_all_products_command,
+)
 
 app = FastAPI()
 
@@ -70,6 +74,20 @@ async def slack_prices(request: Request):
     payload = _parse_form_body(body)
     team_id = payload.get("team_id")
     response = handle_prices_command(team_id)
+    return JSONResponse(content=response)
+
+
+@app.post("/slack/all-products")
+async def slack_all_products(request: Request):
+    body = await request.body()
+    verification = _handle_slack_url_verification(body)
+    if verification:
+        return verification
+    if not _verify_slack_request(request.headers, body):
+        raise HTTPException(status_code=401, detail="Invalid Slack signature")
+    payload = _parse_form_body(body)
+    team_id = payload.get("team_id")
+    response = handle_all_products_command(team_id)
     return JSONResponse(content=response)
 
 
