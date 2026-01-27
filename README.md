@@ -77,6 +77,7 @@ Note: The actual implementation also stores `last_checked` for each competitor a
 - `/prices` command: queries ClientProduct rows for a given Slack Team ID and returns a list of products.
 - Product selection: loads CompetitorTrack rows for that product_id and returns a Block Kit list of competitors with their latest prices.
 - `/all-products` command: returns a single Slack message with all products and their competitors for the team.
+- App mention (optional): when someone mentions the bot, it replies with a short help menu.
 
 ## 4) Why this is the Pro way
 - Dynamic baselines: If the client changes their own price, the next alert calculates the new gap correctly because it scrapes live.

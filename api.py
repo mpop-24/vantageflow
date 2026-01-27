@@ -63,6 +63,25 @@ async def _post_response_url(response_url, payload):
         return
 
 
+async def _post_help_message(channel):
+    token = os.getenv("SLACK_BOT_TOKEN")
+    if not token:
+        return
+    payload = {
+        "channel": channel,
+        "text": "Here’s what I can do:\n• `/prices` — pick a product and see competitors\n• `/all-products` — list all products + competitors",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=8) as client:
+            await client.post(
+                "https://slack.com/api/chat.postMessage",
+                json=payload,
+                headers={"Authorization": f"Bearer {token}"},
+            )
+    except Exception:
+        return
+
+
 @app.post("/slack/prices")
 async def slack_prices(request: Request):
     body = await request.body()
@@ -133,4 +152,14 @@ async def slack_events(request: Request):
         return verification
     if not _verify_slack_request(request.headers, body):
         raise HTTPException(status_code=401, detail="Invalid Slack signature")
+    try:
+        payload = json.loads(body)
+    except Exception:
+        return PlainTextResponse("OK", status_code=200)
+    if payload.get("type") == "event_callback":
+        event = payload.get("event") or {}
+        if event.get("type") == "app_mention":
+            channel = event.get("channel")
+            if channel:
+                await _post_help_message(channel)
     return PlainTextResponse("OK", status_code=200)

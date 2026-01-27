@@ -15,6 +15,17 @@ def _format_signed(value):
     return f"{sign}${abs(value):.2f}"
 
 
+def _gap_text(client_price, competitor_price):
+    if client_price is None or competitor_price is None:
+        return "Gap: n/a"
+    diff = client_price - competitor_price
+    if diff > 0:
+        return f"Gap: {_format_price(diff)} more expensive"
+    if diff < 0:
+        return f"Gap: {_format_price(abs(diff))} cheaper"
+    return "Gap: Price matched"
+
+
 def build_price_alert_message(
     product_name,
     comp_name,
@@ -116,21 +127,30 @@ def build_product_select(products):
     }
 
 
-def build_competitors_view(product):
+def build_competitors_view(product, client_price):
     if not product.competitors:
         blocks = [
             {
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"*{product.product_name}*\nNo competitors configured.",
+                    "text": (
+                        f"*{product.product_name}*\n"
+                        f"Client (live): {_format_price(client_price)}\n"
+                        "No competitors configured."
+                    ),
                 },
             }
         ]
     else:
         lines = []
+        lines.append(f"Client (live): {_format_price(client_price)}")
+        lines.append("")
         for comp in product.competitors:
-            lines.append(f"• *{comp.name}* — {_format_price(comp.last_price)}")
+            gap = _gap_text(client_price, comp.last_price)
+            lines.append(
+                f"• *{comp.name}* — {_format_price(comp.last_price)} — {gap}"
+            )
         blocks = [
             {
                 "type": "section",
@@ -149,21 +169,25 @@ def build_competitors_view(product):
     }
 
 
-def build_all_products_view(products):
-    if not products:
+def build_all_products_view(product_rows):
+    if not product_rows:
         return {
             "response_type": "ephemeral",
             "text": "No products configured yet.",
         }
 
     lines = []
-    for product in products:
-        lines.append(f"{product.product_name}")
+    for row in product_rows:
+        product = row["product"]
+        client_price = row["client_price"]
+        lines.append(f"*{product.product_name}*")
+        lines.append(f"Client (live): {_format_price(client_price)}")
         if not product.competitors:
             lines.append("• No competitors configured.")
             continue
         for comp in product.competitors:
-            lines.append(f"• {comp.name} — {_format_price(comp.last_price)}")
+            gap = _gap_text(client_price, comp.last_price)
+            lines.append(f"• {comp.name} — {_format_price(comp.last_price)} — {gap}")
         lines.append("")
 
     text = "\n".join(lines).strip()
