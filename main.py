@@ -47,6 +47,130 @@ def _extract_first_price(text):
     except ValueError:
         return None
 
+
+def _extract_stock_status(text):
+    if not text:
+        return None
+    lowered = text.lower()
+    if re.search(r"\b(out of stock|sold out|unavailable)\b", lowered):
+        return "Out of Stock"
+    if re.search(r"\b(backorder|backordered|pre[-\s]?order|preorder)\b", lowered):
+        return "Backordered"
+    if re.search(r"\b(low stock|only \d+\s+left|limited stock)\b", lowered):
+        return "Low Stock"
+    if re.search(r"\b(in stock|available now|ready to ship)\b", lowered):
+        return "In Stock"
+    return None
+
+
+def _extract_shipping_estimate(text):
+    if not text:
+        return None, None
+    lowered = text.lower()
+    patterns = [
+        (r"estimated delivery[:\s]+(\d{1,2})\s*[-–]\s*(\d{1,2})\s*(business\s*)?days?", "range"),
+        (r"estimated delivery[:\s]+(\d{1,2})\s*(business\s*)?days?", "single"),
+        (r"(free\s+)?(\d{1,2})\s*[-–]\s*(\d{1,2})\s*(business\s*)?days?", "range"),
+        (r"(free\s+)?(\d{1,2})\s*day shipping", "single"),
+        (r"ships?\s+in\s+(\d{1,2})\s*(business\s*)?days?", "ships_days"),
+        (r"ships?\s+in\s+(\d{1,2})\s*(week|weeks)", "ships_weeks"),
+        (r"delivery in\s+(\d{1,2})\s*(business\s*)?days?", "ships_days"),
+    ]
+    for pattern, kind in patterns:
+        match = re.search(pattern, lowered)
+        if not match:
+            continue
+        if kind == "range":
+            low = int(match.group(2))
+            high = int(match.group(3))
+            label = f"Ships in {low}-{high} days"
+            if match.group(1):
+                label = f"Free {low}-{high} day shipping"
+            return label, (low + high) / 2
+        if kind == "single":
+            days = int(match.group(2))
+            label = f"Free {days}-day shipping" if match.group(1) else f"{days}-day shipping"
+            return label, days
+        if kind == "ships_days":
+            days = int(match.group(1))
+            return f"Ships in {days} days", days
+        if kind == "ships_weeks":
+            weeks = int(match.group(1))
+            days = weeks * 7
+            return f"Ships in {weeks} weeks", days
+    return None, None
+
+
+def _extract_discount_code(text):
+    if not text:
+        return None
+    lowered = text.lower()
+    code_match = re.search(r"\b(?:code|promo code|coupon code|use code)\s*[:\-]?\s*([a-z0-9]{3,12})\b", lowered)
+    discount_match = re.search(r"\b(\d{1,2})\s*%?\s*off\b", lowered)
+    dollars_match = re.search(r"\$\s*(\d{1,4})\s*off\b", lowered)
+    keyword_match = re.search(r"\b(sale|discount|promo|promotion)\b", lowered)
+    code = code_match.group(1).upper() if code_match else None
+    if discount_match:
+        amount = f"{discount_match.group(1)}% off"
+    elif dollars_match:
+        amount = f"${dollars_match.group(1)} off"
+    else:
+        amount = None
+    if code and amount:
+        return f"{amount} (CODE {code})"
+    if code:
+        return f"CODE {code}"
+    if amount:
+        return amount
+    if keyword_match:
+        return "Promo active"
+    return None
+
+
+def _extract_shipping_cost(text):
+    if not text:
+        return None
+    lowered = text.lower()
+    if re.search(r"\bfree shipping\b", lowered):
+        return 0.0
+    match = re.search(r"shipping\s*(?:costs|is|:)?\s*\$?\s*(\d{1,4}(?:\.\d{2})?)", lowered)
+    if not match:
+        match = re.search(r"\$\s*(\d{1,4}(?:\.\d{2})?)\s*shipping", lowered)
+    if not match:
+        return None
+    try:
+        return float(match.group(1))
+    except ValueError:
+        return None
+
+
+def _extract_warranty_years(text):
+    if not text:
+        return None
+    match = re.search(r"(\d{1,2})\s*(?:year|yr)\s*warranty", text, re.IGNORECASE)
+    if not match:
+        match = re.search(r"warranty\s*(?:of|:)?\s*(\d{1,2})\s*(?:year|yr)", text, re.IGNORECASE)
+    if not match:
+        return None
+    try:
+        return int(match.group(1))
+    except ValueError:
+        return None
+
+
+def _extract_review_count(text):
+    if not text:
+        return None
+    match = re.search(r"(\d{1,3}(?:,\d{3})+)\s+(?:reviews|ratings)\b", text, re.IGNORECASE)
+    if not match:
+        match = re.search(r"\b(\d{1,5})\s+(?:reviews|ratings)\b", text, re.IGNORECASE)
+    if not match:
+        return None
+    value = match.group(1).replace(",", "")
+    try:
+        return int(value)
+    except ValueError:
+        return None
 def _extract_price_from_jina(data):
     payload = data
     if isinstance(data, dict) and isinstance(data.get("data"), dict):
@@ -148,6 +272,7 @@ def fetch_shopify_js(vendor, handle, include_raw=False):
                         "on_sale": compare_at is not None and price < compare_at,
                         "status": "success",
                         "source": "shopify_js",
+                        "raw": data if include_raw else None,
                     }
             else:
                 last_error = f"{host}{path}: {error}"
@@ -193,8 +318,73 @@ def get_price(url):
         return price
     return None
 
+
+PLACEHOLDER_MANUAL = "Manual Audit Required"
+PLACEHOLDER_PENDING = "Data Pending"
+
+
+def _needs_placeholder(value):
+    if value is None:
+        return True
+    if isinstance(value, str) and value.strip().lower() in {"", "n/a", "na", "--"}:
+        return True
+    return False
+
+
+def get_product_snapshot(url):
+    full_url = _normalize_url(url)
+    if not full_url:
+        return {}
+    parsed = urlparse(full_url)
+    host = parsed.netloc
+    handle = parsed.path.strip("/").split("/")[-1] if parsed.path.strip("/") else ""
+
+    snapshot = {
+        "price": None,
+        "stock_status": None,
+        "shipping_estimate": None,
+        "shipping_days": None,
+        "shipping_cost": None,
+        "discount": None,
+        "review_count": None,
+        "warranty_years": None,
+    }
+
+    if host and handle:
+        result = fetch_shopify_js(host, handle, include_raw=True)
+        if result.get("status") == "success":
+            snapshot["price"] = result.get("current_price")
+
+    data, _error = _fetch_json(full_url, headers={}, use_jina=True)
+    if data:
+        content = ""
+        if isinstance(data, dict):
+            payload = data.get("data", data)
+            content = payload.get("content") or ""
+        snapshot["stock_status"] = _extract_stock_status(content)
+        ship_label, ship_days = _extract_shipping_estimate(content)
+        snapshot["shipping_estimate"] = ship_label
+        snapshot["shipping_days"] = ship_days
+        snapshot["shipping_cost"] = _extract_shipping_cost(content)
+        snapshot["discount"] = _extract_discount_code(content)
+        snapshot["review_count"] = _extract_review_count(content)
+        snapshot["warranty_years"] = _extract_warranty_years(content)
+        if snapshot["price"] is None:
+            price, _title = _extract_price_from_jina(data)
+            snapshot["price"] = price
+
+    if _needs_placeholder(snapshot.get("stock_status")):
+        snapshot["stock_status"] = PLACEHOLDER_MANUAL
+    if _needs_placeholder(snapshot.get("shipping_estimate")) and snapshot.get("shipping_days") is None:
+        snapshot["shipping_estimate"] = PLACEHOLDER_PENDING
+    if _needs_placeholder(snapshot.get("discount")):
+        snapshot["discount"] = PLACEHOLDER_PENDING
+
+    return snapshot
+
 class PriceScraper:
     def get_price(self, url):
         return get_price(url)
 
-
+    def get_snapshot(self, url):
+        return get_product_snapshot(url)

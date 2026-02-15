@@ -111,3 +111,8 @@ GUARDIAN_MODE=forever CHECK_INTERVAL_HOURS=4 python guardian.py
 ```bash
 python audit.py --product-id 123
 ```
+Add `--pdf` to write a PDF summary (auto-named), or provide a path:
+```bash
+python audit.py --product-id 123 --pdf
+python audit.py --product-id 123 --pdf /tmp/audit_123.pdf
+```

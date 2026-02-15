@@ -1,6 +1,7 @@
 import logging
 import os
 import time
+import traceback
 
 from main import PriceScraper
 from slack_alerts import send_price_alert
@@ -24,7 +25,12 @@ def run_once():
 def run_forever():
     interval = _interval_seconds()
     while True:
-        run_once()
+        try:
+            run_once()
+        except Exception:
+            print("run_once crashed:\n" + traceback.format_exc(), flush=True)
+            time.sleep(10)
+            continue
         time.sleep(interval)
 
 

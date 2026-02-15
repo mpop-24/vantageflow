@@ -1,4 +1,5 @@
 fastapi
+fpdf2
 httpx
 psycopg2-binary
 sqlmodel

@@ -1,6 +1,7 @@
 import os
+import time
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 import httpx
 
@@ -30,6 +31,11 @@ def _get_env(name: str) -> str:
     value = os.getenv(name)
     if not value:
         raise RuntimeError(f"{name} is not set")
+    value = value.strip()
+    if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
+        value = value[1:-1].strip()
+    if not value:
+        raise RuntimeError(f"{name} is not set")
     return value
 
 
@@ -48,14 +54,55 @@ def _base_url() -> str:
     return f"{supabase_url}/rest/v1"
 
 
-def _request(method: str, path: str, params=None, json=None):
-    url = f"{_base_url()}/{path.lstrip('/')}"
-    headers = _get_headers()
-    response = httpx.request(method, url, headers=headers, params=params, json=json, timeout=15)
-    response.raise_for_status()
-    if response.status_code == 204:
-        return None
-    return response.json()
+RETRYABLE_STATUS = {408, 429, 500, 502, 503, 504}
+
+
+def _request(method: str, table: str, *, params=None, json=None):
+    SUPABASE_URL = _get_env("SUPABASE_URL").rstrip("/")
+    SUPABASE_KEY = _get_env("SUPABASE_SERVICE_ROLE_KEY")
+
+    url = f"{SUPABASE_URL}/rest/v1/{table}"
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Accept": "application/json",
+    }
+
+    # 15s total is tight. Use split timeouts.
+    timeout = httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=10.0)
+
+    last_exc: Exception | None = None
+    for attempt in range(1, 6):  # 5 tries
+        try:
+            r = httpx.request(
+                method,
+                url,
+                headers=headers,
+                params=params,
+                json=json,
+                timeout=timeout,
+                follow_redirects=True,
+            )
+
+            if r.status_code in RETRYABLE_STATUS:
+                # backoff: 1,2,4,8,16
+                time.sleep(min(2 ** (attempt - 1), 16))
+                continue
+
+            r.raise_for_status()
+
+            # 204 = no content
+            if r.status_code == 204 or not r.text:
+                return None
+
+            return r.json()
+
+        except (httpx.ReadTimeout, httpx.ConnectTimeout, httpx.RemoteProtocolError) as e:
+            last_exc = e
+            time.sleep(min(2 ** (attempt - 1), 16))
+            continue
+
+    raise last_exc or RuntimeError("Supabase request failed after retries")
 
 
 def _parse_float(value):
@@ -65,6 +112,12 @@ def _parse_float(value):
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def _format_utc(dt: datetime) -> str:
+    if dt.tzinfo is None:
+        return dt.isoformat() + "Z"
+    return dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def _map_competitor(row) -> CompetitorTrack:
@@ -119,7 +172,7 @@ def update_competitor(comp_id: int, last_price=None, last_checked: Optional[date
     if last_price is not None:
         payload["last_price"] = last_price
     if last_checked is not None:
-        payload["last_checked"] = last_checked.isoformat() + "Z"
+        payload["last_checked"] = _format_utc(last_checked)
     if not payload:
         return None
     params = {"id": f"eq.{comp_id}"}
