@@ -114,6 +114,64 @@ def build_price_alert_message(
     }
 
 
+def build_initial_monitoring_message(
+    product_name,
+    reason,
+    client_p=None,
+    competitor_count=0,
+    product_url=None,
+):
+    if reason == "channel_changed":
+        reason_text = "Tracking was moved to this channel."
+    else:
+        reason_text = "A new product was added and monitoring started."
+
+    competitor_label = "competitor" if competitor_count == 1 else "competitors"
+    fields = [
+        {"type": "mrkdwn", "text": f"Current Price\n{_format_price(client_p)}"},
+        {"type": "mrkdwn", "text": f"Tracked\n{competitor_count} {competitor_label}"},
+    ]
+
+    blocks = [
+        {
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": "Guardian Monitoring Activated"},
+        },
+        {
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": f"{product_name}\n{reason_text}"},
+        },
+        {
+            "type": "section",
+            "fields": fields,
+        },
+    ]
+
+    if product_url:
+        blocks.append(
+            {
+                "type": "actions",
+                "elements": [
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "Open Product"},
+                        "url": product_url,
+                    }
+                ],
+            }
+        )
+
+    return {
+        "text": f"Guardian monitoring activated for {product_name}.",
+        "attachments": [
+            {
+                "color": "#1f7a4d",
+                "blocks": blocks,
+            }
+        ],
+    }
+
+
 def build_product_select(products):
     if not products:
         return {

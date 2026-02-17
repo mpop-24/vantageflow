@@ -43,12 +43,15 @@ The parent-child relationship is defined in the database schema. SQLModel models
 ## 2) Worker Logic (the Brain)
 Every run (typically every 4 hours), the worker:
 1) Scrapes the client's CURRENT price live (not from DB).
-2) Scrapes each competitor's current price.
-3) If the competitor price changed vs. `last_price`, it:
+2) Sends one initial "monitoring activated" Slack alert when:
+   - a product is seen for the first time, or
+   - its `slack_channel_id` changes to a different channel.
+3) Scrapes each competitor's current price.
+4) If the competitor price changed vs. `last_price`, it:
    - Computes the gap vs. the current client price.
    - Sends a Slack alert with the change and the gap.
    - Updates `last_price` (and `last_checked`).
-4) If no change, it logs the check and moves on.
+5) If no change, it logs the check and moves on.
 
 Simplified flow (matches the intent of `worker.py`):
 
@@ -93,7 +96,7 @@ The audit formatter is a separate on-demand script (`audit.py`). It scrapes curr
    - `SUPABASE_SERVICE_ROLE_KEY` (server-side only; never ship to the browser)
    - `SLACK_BOT_TOKEN`
    - `SLACK_SIGNING_SECRET`
-   - Optional: `CHECK_INTERVAL_HOURS` (default 4), `GUARDIAN_MODE` (`once` or `forever`)
+   - Optional: `CHECK_INTERVAL_HOURS` (default 4), `GUARDIAN_MODE` (`once` or `forever`), `GUARDIAN_STATE_FILE` (default `.guardian_state.json`)
 
 2) Ensure your DB schema includes the `last_checked` column for `CompetitorTrack`.
 

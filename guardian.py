@@ -4,7 +4,7 @@ import time
 import traceback
 
 from main import PriceScraper
-from slack_alerts import send_price_alert
+from slack_alerts import send_initial_product_alert, send_price_alert
 from worker import check_all_prices
 
 
@@ -19,7 +19,7 @@ def _interval_seconds():
 
 def run_once():
     scraper = PriceScraper()
-    check_all_prices(scraper, send_price_alert)
+    check_all_prices(scraper, send_price_alert, send_initial_product_alert)
 
 
 def run_forever():
