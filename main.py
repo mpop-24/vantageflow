@@ -234,8 +234,10 @@ def _fetch_json(url, headers, use_jina=False):
         headers = {"Accept": "application/json"}
     try:
         response = httpx.get(target_url, headers=headers, timeout=10)
-        if response.status_code != 200:
+        if not response.is_success:
             return None, f"Status {response.status_code}"
+        if response.status_code == 204 or not response.text.strip():
+            return None, None
         try:
             return response.json(), None
         except Exception:
@@ -274,7 +276,7 @@ def fetch_shopify_js(vendor, handle, include_raw=False):
                         "source": "shopify_js",
                         "raw": data if include_raw else None,
                     }
-            else:
+            elif error:
                 last_error = f"{host}{path}: {error}"
 
         for path in _page_candidates(handle):
@@ -297,7 +299,8 @@ def fetch_shopify_js(vendor, handle, include_raw=False):
                 if include_raw:
                     result["raw"] = data
                 return result
-            last_error = f"{host}{path} (jina): {error}"
+            if error:
+                last_error = f"{host}{path} (jina): {error}"
 
     return {"vendor": vendor, "error": last_error or "No vendor candidates"}
 

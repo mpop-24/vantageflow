@@ -96,7 +96,7 @@ def _fetch_price(vendor, handle, headers):
             url = f"https://{vendor}/{handle}"
             resp = page.goto(url, wait_until="networkidle", timeout=45000)
             page.wait_for_timeout(2000)
-            if resp and resp.status == 200:
+            if resp and 200 <= resp.status < 300:
                 html = page.content()
                 price_raw = _extract_price_from_html(html)
                 price = _normalize_price(price_raw)
@@ -106,7 +106,7 @@ def _fetch_price(vendor, handle, headers):
             # Shopify fallback (Hinomi)
             shopify_url = f"https://{vendor}/products/{handle}"
             resp = page.goto(shopify_url, wait_until="networkidle", timeout=45000)
-            if resp and resp.status == 200:
+            if resp and 200 <= resp.status < 300:
                 price_raw = _extract_price_from_html(page.content())
                 price = _normalize_price(price_raw)
                 if price:
